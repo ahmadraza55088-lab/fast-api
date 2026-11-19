@@ -1,6 +1,20 @@
-from fastapi import FastAPI, Body
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, ConfigDict, Field
 
 app = FastAPI()
+
+origins = [
+    "http://localhost:5173",  # React Vite
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 BOOKS = [
     {
@@ -45,25 +59,27 @@ BOOKS = [
     }
 ]
 
+class Book(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    id: int
+    name: str = Field(min_length=3, max_length=50)
+    description: str = Field(min_length=5, max_length=500)
+    author: str = Field(min_length=3, max_length=50)
+    price: int = Field(gt=0, le=100000)
+    type: str = Field(min_length=3, max_length=30)
+
 
 @app.get("/")
 async def read_root():
     return {"message": "This is todo app"}
-
 
 @app.get('/books')
 async def get_books():
     return BOOKS
 
 @app.post('/create-book')
-async def create_book(request_data = Body()):
-    if not isinstance(request_data, dict):
-        return {
-            "error": "Data is not valid"
-        }
-
-    # validate key data as per our book schema
-
+async def create_book(request_data: Book):
     BOOKS.append(request_data)
     return {
         "message": "New Book Added Successfuly!",
@@ -71,15 +87,9 @@ async def create_book(request_data = Body()):
     }
 
 @app.delete('/delete/{book_id}')
-async def delete_book(book_id):
-    b_id = int(book_id)
-    if not isinstance(b_id, int):
-        return {
-            "error": "Book id is not a valid id!"
-        }
-
+async def delete_book(book_id: int):
     for book in BOOKS:
-        if book["id"] == b_id:
+        if book["id"] == book_id:
             BOOKS.remove(book)
             break
     return {
@@ -87,20 +97,11 @@ async def delete_book(book_id):
     }
 
 @app.put('/edit')
-async def update_book(request_data = Body()):
-
-    if not isinstance(request_data, dict):
-        return {
-            "error": "Data is not valid"
-        }
-
+async def update_book(request_data: Book):
     for index in range(0, len(BOOKS)):
-        print(index)
-        print(BOOKS[index]["id"])
-        if BOOKS[index]["id"] == request_data["id"]:
+        if BOOKS[index]["id"] == request_data.id:
             BOOKS[index] = request_data
             break
-
     return {
         "message": "Successfully updated book!"
     }
