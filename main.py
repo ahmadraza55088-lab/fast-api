@@ -2,7 +2,46 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
-app = FastAPI()
+import sqlite3
+from contextlib import contextmanager, asynccontextmanager
+
+# 1. Database connection manager
+@contextmanager
+def get_db_connection():
+    conn = sqlite3.connect("library.db")
+    conn.row_factory = sqlite3.Row
+
+    try:
+        yield conn
+    finally:
+        conn.close()
+
+# 2. Create table
+def create_tables():
+    with get_db_connection() as conn:
+        conn.execute("""
+            CREATE TABLE IF NOT EXISTS books (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    name TEXT NOT NULL,
+                    description TEXT,
+                    author TEXT NOT NULL,
+                    price REAL NOT NULL,
+                    type TEXT NOT NULL
+                )
+            """)
+
+# Fixed Lifespan Handler
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # Runs on startup
+    create_tables()
+    yield
+    # Runs on shutdown (optional cleanup goes here)
+
+
+# Pass lifespan into FastAPI()
+app = FastAPI(lifespan=lifespan)
+
 
 origins = [
     "http://localhost:5173",  # React Vite
@@ -16,53 +55,11 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-BOOKS = [
-    {
-        "id": 1,
-        "name": "Harry Potter",
-        "description": "A fantasy book",
-        "author": "J.K. Rowling",
-        "price": 400,
-        "type": "Fantasy"
-    },
-    {
-        "id": 2,
-        "name": "The Hobbit",
-        "description": "An adventure fantasy novel",
-        "author": "J.R.R. Tolkien",
-        "price": 350,
-        "type": "Fantasy"
-    },
-    {
-        "id": 3,
-        "name": "Atomic Habits",
-        "description": "A self-help book about building good habits",
-        "author": "James Clear",
-        "price": 500,
-        "type": "Self-Help"
-    },
-    {
-        "id": 4,
-        "name": "The Alchemist",
-        "description": "A philosophical novel about following your dreams",
-        "author": "Paulo Coelho",
-        "price": 400,
-        "type": "Fiction"
-    },
-    {
-        "id": 5,
-        "name": "Rich Dad Poor Dad",
-        "description": "A personal finance and investment book",
-        "author": "Robert T. Kiyosaki",
-        "price": 450,
-        "type": "Finance"
-    }
-]
 
+BOOKS = []
 class Book(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    id: int
     name: str = Field(min_length=3, max_length=50)
     description: str = Field(min_length=5, max_length=500)
     author: str = Field(min_length=3, max_length=50)
@@ -76,16 +73,39 @@ async def read_root():
 
 @app.get('/books')
 async def get_books():
-    return BOOKS
+    with get_db_connection() as conn:
+        res = conn.execute("SELECT * FROM books")
+        rows = res.fetchall()
+
+    # Convert sqlite3.Row objects into standard Python dicts so FastAPI can return JSON
+    books = [dict(row) for row in rows]
+    return books
 
 @app.post('/create-book')
 async def create_book(request_data: Book):
-    BOOKS.append(request_data)
+    with get_db_connection() as conn:
+            cursor = conn.execute(
+                """
+                INSERT INTO books(name, description, author, price, type)
+                VALUES(?, ?, ?, ?, ?)
+                """,
+                (
+                    request_data.name,
+                    request_data.description,
+                    request_data.author,
+                    request_data.price,
+                    request_data.type,
+                ),
+            )
+
+            conn.commit()
+
     return {
-        "message": "New Book Added Successfuly!",
-        "newBook": request_data
+        "message": "New Book Added Successfuly!"
     }
 
+
+# Need to convert into Sqlite
 @app.delete('/delete/{book_id}')
 async def delete_book(book_id: int):
     for book in BOOKS:
