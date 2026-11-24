@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException, Path, Query
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -55,8 +55,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
-BOOKS = []
 class Book(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -97,7 +95,6 @@ async def create_book(request_data: Book):
                     request_data.type,
                 ),
             )
-
             conn.commit()
 
     return {
@@ -107,32 +104,90 @@ async def create_book(request_data: Book):
 
 # Need to convert into Sqlite
 @app.delete('/delete/{book_id}')
-async def delete_book(book_id: int):
-    for book in BOOKS:
-        if book["id"] == book_id:
-            BOOKS.remove(book)
-            break
+async def delete_book(book_id: int = Path(gt=0)):
+    with get_db_connection() as conn:
+        cursor = conn.execute(
+            "DELETE FROM books WHERE id = ?",
+            (book_id,)
+        )
+        conn.commit()
+
+        if cursor.rowcount == 0:
+            raise HTTPException(
+                status_code=404,
+                detail="Book not found!"
+            )
+    
     return {
+        "status_code": 200,
         "message": "Successfully removed book!"
     }
 
-@app.put('/edit')
-async def update_book(request_data: Book):
-    for index in range(0, len(BOOKS)):
-        if BOOKS[index]["id"] == request_data.id:
-            BOOKS[index] = request_data
-            break
+@app.put('/update/{book_id}')
+async def update_book(request_data: Book, book_id: int = Path(gt=0)):
+    with get_db_connection() as conn:
+        cursor = conn.execute(
+            "UPDATE books SET name = ?, description = ?, author = ?, price = ?, type = ? WHERE id = ?",
+            (
+                request_data.name,
+                request_data.description,
+                request_data.author,
+                request_data.price,
+                request_data.type,
+                book_id,
+            ),
+        )
+
+        conn.commit()
+    
+    if cursor.rowcount == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Book not found!"
+        )
+        
     return {
         "message": "Successfully updated book!"
     }
 
 @app.get('/book/')
-async def get_book_by_type(type: str):
-    bucket  = []
-    for book in BOOKS:
-        if (book["type"] == type):
-            bucket.append(book)
+async def search(q: str = Query(min_length=3)):
+    search = f"%{q}%"
+    with get_db_connection() as conn:
+        res = conn.execute(
+            """
+                SELECT * FROM books WHERE
+                type LIKE ? OR
+                name LIKE ? OR
+                author LIKE ?
+            """,
+            (
+                search,
+                search,
+                search,
+            ))
+        rows = res.fetchall()
+        books = [dict(row) for row in rows]
+        if len(books):
+            return books
+        else:
+            return {
+                "message": f"{q} No results found!",
+                "keyword": q
+            }
 
-    return bucket
+@app.get('/book/{book_id}')
+async def get_book_by_id(book_id: int = Path(gt=0)):
 
+    with get_db_connection() as conn:
+        res = conn.execute("SELECT * FROM books WHERE id = ?",(book_id,))
+        row = res.fetchone()
+
+        if row is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Book with ID {book_id} not found!"
+            )
+        
+        return dict(row)
 
