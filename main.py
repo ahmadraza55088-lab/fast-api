@@ -98,6 +98,7 @@ async def create_book(request_data: Book):
             conn.commit()
 
     return {
+        "status_code": 200,
         "message": "New Book Added Successfuly!"
     }
 
