@@ -1,0 +1,27 @@
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+.ml-10 {
+  margin-left: 10px;
+}
+.mr-10 {
+  margin-right: 10px;
+}
+.mt-10 {
+  margin-top: 10px;
+}
+.mb-10 {
+  margin-bottom: 10px;
+}
+.n-table {
+  width: 100%;
+  border: 1px solid black;
+  border-collapse: collapse; /* Replaces cellspacing="0" */
+}
+.n-table th,
+.n-table td {
+  border: 1px solid black;
+  padding: 5px; /* Replaces cellpadding="0" */
+}

@@ -1,0 +1,81 @@
+@import "tailwindcss";
+
+/* Main container */
+.container {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  width: 100%;
+  min-height: 100vh;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+/* Form wrapper */
+.parent-form {
+  width: 100%;
+  max-width: 450px;
+  box-sizing: border-box;
+}
+
+/* Form heading */
+.parent-form h1 {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+/* Form */
+.parent-form form {
+  width: 100%;
+}
+
+/* Form controls */
+.parent-form .form-control {
+  width: 100%;
+  margin: 20px 0;
+  box-sizing: border-box;
+}
+
+/* Labels */
+.parent-form label {
+  display: block;
+  margin-bottom: 10px;
+}
+
+/* Input and textarea */
+.parent-form .input-control {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  box-sizing: border-box;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  font-size: 14px;
+  outline: none;
+}
+
+.parent-form .input-control:focus {
+  border-color: blue;
+}
+
+/* Submit button */
+.parent-form .submit-control {
+  display: block;
+  width: 100%;
+  padding: 10px;
+  cursor: pointer;
+  border: 1px solid blue;
+  border-radius: 5px;
+}
+
+.parent-form .submit-control:hover {
+  background-color: rgb(176, 196, 196);
+}
+
+/* Error message */
+.error {
+  color: red;
+  font-size: 13px;
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+}
